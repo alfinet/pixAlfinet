@@ -61,7 +61,9 @@ function Index() {
 
   /* Nome do banco */
   const [nomeBanco, setNomeBanco] = useState("");
-  const alteraNomeBanco = useCallback((value) => setNomeBanco(value), []);
+  const alteraNomeBanco = useCallback((value) => {
+    setNomeBanco(value);
+  }, []);
 
   /* Nome da cidade */
   const [nomeCidade, setNomeCidade] = useState("");
@@ -99,8 +101,8 @@ function Index() {
     const { data } = await axios.get("/script_tag/all");
     console.log("O PIX está atualmente: ", data);
     setIsInstalled(data.installed);
-    if (data.details.length > 0) {
-      setScriptTagId(data.details[0].id);
+    if (data.details && data.details.length > 0) {
+      setScriptTagId(data.details[0]);
     }
   }
 
@@ -112,7 +114,8 @@ function Index() {
       if (bankName) setNomeBanco(bankName);
       if (city) setNomeCidade(city);
       if (message) setMensagem(message);
-    }
+    },
+    [nomePix, chave, nomeBanco, nomeCidade, mensagem, color]
   );
 
   async function fetchMetafields() {
@@ -121,11 +124,9 @@ function Index() {
       console.log("fetchMetafields", data);
 
       if (data && data.id) {
-        const { id, value } = data;
-        setMetafieldId(id);
-        if (typeof value === "object") {
-          setFields(value);
-        }
+        const { id } = data;
+        if (id) setMetafieldId(id);
+        setFields(data);
       }
     } catch (e) {
       console.log(e);
@@ -138,69 +139,79 @@ function Index() {
   }, [isInstalled]);
 
   useEffect(() => {
-    fetchMetafields();
+    if (!metafieldId) fetchMetafields();
   }, [metafieldId]);
 
   async function handleAction() {
     if (!isInstalled) {
-      axios.post("/script_tag/");
+      axios.post("/script_tag");
     } else {
-      axios.delete(`/script_tag/?id=${scriptTagId}`);
+      axios.delete(`/script_tag`);
     }
     setIsInstalled((oldValue) => !oldValue);
   }
 
-  const handleSubmit = useCallback((_event) => {
-    setIsSaving(true);
-    setSavingStatus("");
-    setSavingStatus({
-      isValid: true,
-      msg: "Salvando informações...",
-    });
-    const paylaod = {
-      bankName: String(nomeBanco).trim(),
-      bg: String(color).trim(),
-      city: String(nomeCidade).trim(),
-      fullName: String(nomePix).trim(),
-      message: String(mensagem).trim(),
-      pixKey: String(chave).trim(),
-    };
+  const handleSubmit = useCallback(
+    (_event) => {
+      setIsSaving(true);
+      setSavingStatus("");
+      setSavingStatus({
+        isValid: true,
+        msg: "Salvando informações...",
+      });
+      const payload = {
+        bankName: String(nomeBanco).trim(),
+        bg: String(color).trim(),
+        city: String(nomeCidade).trim(),
+        fullName: String(nomePix).trim(),
+        message: String(mensagem).trim(),
+        pixKey: String(chave).trim(),
+      };
 
-    console.log("metafieldId", metafieldId);
-    axios({
-      method: !metafieldId ? "post" : "put",
-      url: !metafieldId ? "/metafields" : `/metafields/${metafieldId}`,
-      data: paylaod,
-    })
-      .then(({ data }) => {
-        const { success, metafield, error } = data;
-        if (!success || !metafield) {
-          throw new Error(error);
-        }
-        setSavingStatus({
-          isValid: true,
-          msg: "Salvo com sucesso!",
-        });
-
-        if (metafield.id) {
-          setMetafieldId(metafield.id);
-        }
-
-        if (!isInstalled || !scriptTagId) {
-          axios.post("/script_tag");
-        } else {
-          axios.put(`/script_tag/?id=${scriptTagId}`);
-        }
+      console.log("metafieldId", metafieldId);
+      console.log("payload", payload);
+      axios({
+        method: !metafieldId ? "post" : "put",
+        url: !metafieldId ? "/metafields" : `/metafields/${metafieldId}`,
+        data: payload,
       })
-      .catch((e) => {
-        console.log(e);
-        setSavingStatus({
-          isValid: false,
-          msg: "Ocorreu um erro ao salvar as alterações. Tente novamente.",
-        });
-      })
-      .finally(() => setIsSaving(false));
-  }, []);
+        .then(({ data }) => {
+          const { success, metafield, error } = data;
+          if (!success || !metafield) {
+            throw new Error(error);
+          }
+          setSavingStatus({
+            isValid: true,
+            msg: "Salvo com sucesso!",
+          });
+
+          if (metafield.id) {
+            setMetafieldId(metafield.id);
+          }
+
+          axios[!isInstalled ? "post" : "put"]("/script_tag")
+            .then((res) => {
+              if (res && res.details && res.details.length > 0) {
+                setScriptTagId(res.details[0]);
+                setIsInstalled(true);
+              }
+            })
+            .catch(() => {
+              setIsInstalled(false);
+              setScriptTagId(null);
+            });
+        })
+        .catch((e) => {
+          console.log(e);
+          setSavingStatus({
+            isValid: false,
+            msg: "Ocorreu um erro ao salvar as alterações. Tente novamente.",
+          });
+        })
+        .finally(() => setIsSaving(false));
+    },
+    [nomePix, chave, nomeBanco, nomeCidade, mensagem, color]
+  );
 
   /* Estilos */
   const pixSection = {

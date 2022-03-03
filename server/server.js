@@ -6,6 +6,7 @@ import Shopify, { ApiVersion } from "@shopify/shopify-api";
 import Koa from "koa";
 import next from "next";
 import Router from "koa-router";
+import serve from "koa-static";
 import bodyParser from "koa-bodyparser";
 import routes from "./router/index";
 
