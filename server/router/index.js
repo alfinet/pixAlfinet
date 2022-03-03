@@ -1,7 +1,7 @@
 import combineRouters from "koa-combine-routers";
 import scriptTagRouter from "./script_tag";
+import metafieldsRouter from "./metafields";
 
-console.log("fui chamado 1");
-const router = combineRouters(scriptTagRouter);
+const router = combineRouters(scriptTagRouter, metafieldsRouter);
 
 export default router;

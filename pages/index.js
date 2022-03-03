@@ -3,10 +3,13 @@ import {
   Page,
   Card,
   Form,
+  FormLayout,
   TextField,
   SettingToggle,
   TextStyle,
   Banner,
+  Button,
+  Stack,
 } from "@shopify/polaris";
 import { SketchPicker } from "react-color";
 import React, { useEffect, useState, useCallback } from "react";
@@ -15,6 +18,9 @@ import { useAxios } from "../hooks/useAxios";
 function Index() {
   const [axios] = useAxios();
   const [isInstalled, setIsInstalled] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [savingStatus, setSavingStatus] = useState({ isValid: true, msg: "" });
+  const [metafieldId, setMetafieldId] = useState();
   const [scriptTagId, setScriptTagId] = useState();
   const titleDescription = isInstalled ? "Desinstalar" : "Instalar";
   const bodyDescription = isInstalled ? "instalado" : "desinstalado";
@@ -47,10 +53,7 @@ function Index() {
 
   /* Nome do pix */
   const [nomePix, setNomePix] = useState("");
-  const alteraNomePix = useCallback(function (value) {
-    console.log("Teste");
-    setNomePix(value);
-  });
+  const alteraNomePix = useCallback((value) => setNomePix(value), []);
 
   /* Chave PIX */
   const [chave, setChave] = useState("");
@@ -59,6 +62,10 @@ function Index() {
   /* Nome do banco */
   const [nomeBanco, setNomeBanco] = useState("");
   const alteraNomeBanco = useCallback((value) => setNomeBanco(value), []);
+
+  /* Nome da cidade */
+  const [nomeCidade, setNomeCidade] = useState("");
+  const alteraNomeCidade = useCallback((value) => setNomeCidade(value), []);
 
   /* Mensagem custom */
   const [mensagem, setMensagem] = useState("");
@@ -69,30 +76,23 @@ function Index() {
   });
 
   /* Cor do background */
-  const [color, setColor] = useState({
-    hex: "#000000",
-    hsl: { h: 249.99999999999994, s: 0, l: 0, a: 1 },
-    hsv: { h: 249.99999999999994, s: 0, v: 0, a: 1 },
-    oldHue: 249.99999999999994,
-    rgb: { r: 0, g: 0, b: 0, a: 1 },
-    source: "hsv",
-  });
+  const [color, setColor] = useState("#000000");
 
   const alteraColor = useCallback(function (value) {
-    setColor(value);
+    console.log("alteraColor", value);
+    setColor(value.hex);
     //containerPixTeste.style.backgroundColor = color;
   });
 
   useEffect(() => {
-    var corPrimary = color.hex;
-    var corSecundary = invertColor(corPrimary, true);
+    var corSecundary = invertColor(color, true);
 
-    document.querySelector(".pixSection").style.backgroundColor = corPrimary;
+    document.querySelector(".pixSection").style.backgroundColor = color;
     document.querySelector(".pixTitle").style.color = corSecundary;
     document.querySelector(".pixCustomInfo").style.color = corSecundary;
     document.querySelector(".pixPreco").style.color = corSecundary;
     document.querySelector(".pixBotao").style.backgroundColor = corSecundary;
-    document.querySelector(".pixBotao").style.color = corPrimary;
+    document.querySelector(".pixBotao").style.color = color;
   }, [color]);
 
   async function fetchScriptTags() {
@@ -104,9 +104,42 @@ function Index() {
     }
   }
 
+  const setFields = useCallback(
+    async ({ bankName, bg, city, fullName, message, pixKey }) => {
+      if (bg) setColor(bg);
+      if (fullName) setNomePix(fullName);
+      if (pixKey) setChave(pixKey);
+      if (bankName) setNomeBanco(bankName);
+      if (city) setNomeCidade(city);
+      if (message) setMensagem(message);
+    }
+  );
+
+  async function fetchMetafields() {
+    try {
+      const { data } = await axios.get("/metafields");
+      console.log("fetchMetafields", data);
+
+      if (data && data.id) {
+        const { id, value } = data;
+        setMetafieldId(id);
+        if (typeof value === "object") {
+          setFields(value);
+        }
+      }
+    } catch (e) {
+      console.log(e);
+      // Metafield inexistente
+    }
+  }
+
   useEffect(() => {
     fetchScriptTags();
   }, [isInstalled]);
+
+  useEffect(() => {
+    fetchMetafields();
+  }, [metafieldId]);
 
   async function handleAction() {
     if (!isInstalled) {
@@ -116,6 +149,58 @@ function Index() {
     }
     setIsInstalled((oldValue) => !oldValue);
   }
+
+  const handleSubmit = useCallback((_event) => {
+    setIsSaving(true);
+    setSavingStatus("");
+    setSavingStatus({
+      isValid: true,
+      msg: "Salvando informações...",
+    });
+    const paylaod = {
+      bankName: String(nomeBanco).trim(),
+      bg: String(color).trim(),
+      city: String(nomeCidade).trim(),
+      fullName: String(nomePix).trim(),
+      message: String(mensagem).trim(),
+      pixKey: String(chave).trim(),
+    };
+
+    console.log("metafieldId", metafieldId);
+    axios({
+      method: !metafieldId ? "post" : "put",
+      url: !metafieldId ? "/metafields" : `/metafields/${metafieldId}`,
+      data: paylaod,
+    })
+      .then(({ data }) => {
+        const { success, metafield, error } = data;
+        if (!success || !metafield) {
+          throw new Error(error);
+        }
+        setSavingStatus({
+          isValid: true,
+          msg: "Salvo com sucesso!",
+        });
+
+        if (metafield.id) {
+          setMetafieldId(metafield.id);
+        }
+
+        if (!isInstalled || !scriptTagId) {
+          axios.post("/script_tag");
+        } else {
+          axios.put(`/script_tag/?id=${scriptTagId}`);
+        }
+      })
+      .catch((e) => {
+        console.log(e);
+        setSavingStatus({
+          isValid: false,
+          msg: "Ocorreu um erro ao salvar as alterações. Tente novamente.",
+        });
+      })
+      .finally(() => setIsSaving(false));
+  }, []);
 
   /* Estilos */
   const pixSection = {
@@ -173,31 +258,62 @@ function Index() {
           </Banner>
           <br />
           <Card sectioned>
-            <Form>
-              <TextField
-                value={nomePix}
-                onChange={alteraNomePix}
-                label="Nome do PIX (Conforme registrado no banco)"
-                autoComplete="off"
-              />
-              <TextField
-                value={chave}
-                onChange={alteraChave}
-                label="Chave PIX"
-              />
-              <TextField
-                value={nomeBanco}
-                onChange={alteraNomeBanco}
-                label="Nome da instituição financeira"
-              />
-              <TextField
-                label="Mensagem customizada"
-                value={mensagem}
-                onChange={alteraMensagem}
-                multiline={6}
-                autoComplete="off"
-                clearButton={true}
-              />
+            <Form onSubmit={handleSubmit}>
+              <FormLayout>
+                <TextField
+                  value={nomePix}
+                  onChange={alteraNomePix}
+                  disabled={isSaving}
+                  label="Nome do PIX (Conforme registrado no banco)"
+                  autoComplete="off"
+                />
+                <TextField
+                  value={chave}
+                  onChange={alteraChave}
+                  disabled={isSaving}
+                  label="Chave PIX"
+                />
+                <TextField
+                  value={nomeBanco}
+                  onChange={alteraNomeBanco}
+                  disabled={isSaving}
+                  label="Nome da instituição financeira"
+                />
+                <TextField
+                  value={nomeCidade}
+                  onChange={alteraNomeCidade}
+                  disabled={isSaving}
+                  label="Nome da cidade"
+                />
+                <TextField
+                  label="Mensagem customizada"
+                  value={mensagem}
+                  onChange={alteraMensagem}
+                  multiline={6}
+                  autoComplete="off"
+                  disabled={isSaving}
+                  clearButton={true}
+                />
+                <Stack>
+                  <Stack.Item fill>
+                    <TextStyle
+                      variation={savingStatus.isValid ? "positive" : "negative"}
+                    >
+                      {savingStatus.msg}
+                    </TextStyle>
+                  </Stack.Item>
+                  <Stack.Item>
+                    <Button
+                      primary
+                      loading={isSaving}
+                      disabled={isSaving}
+                      submit
+                    >
+                      Salvar
+                    </Button>
+                  </Stack.Item>
+                </Stack>
+              </FormLayout>
             </Form>
           </Card>
         </Layout.AnnotatedSection>

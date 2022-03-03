@@ -1,23 +1,38 @@
 import { DataType } from "@shopify/shopify-api";
 
-export async function createScriptTag(client) {
-  if (client) {
-    const data = {
-      script_tag: {
-        event: "onload",
-        src:
-          "//cdn.shopify.com/s/files/1/0502/6316/3060/t/11/assets/teste.js?v=15010666606992974210",
-      },
-    };
-    const result = await client.post({
-      path: "script_tags",
-      data,
-      type: DataType.JSON,
-    });
-    console.log(`Resultado da requisição de script foi`, result);
-    return result;
-  }
-  console.error("Could not make the rest request as the client does not exist");
+function makeScriptTag(metafield = {}) {
+  const appData = Buffer.from(JSON.stringify(metafield)).toString("base64");
+  return {
+    event: "onload",
+    src: `//cdn.shopify.com/s/files/1/0502/6316/3060/t/11/assets/teste.js?v=${Date.now()}&appdata=${appData}`,
+  };
+}
+
+export async function createScriptTag(client, metafield = {}) {
+  const { body } = await client.post({
+    path: "script_tags",
+    data: {
+      script_tag: makeScriptTag(metafield),
+    },
+    type: DataType.JSON,
+  });
+  console.log(`Resultado da requisição de script foi`, body);
+  return body;
+}
+
+export async function updateScriptTag(client, metafield = {}, id) {
+  // if (client) {
+  const { body } = await client.put({
+    path: `script_tags/${id}`,
+    data: {
+      script_tag: makeScriptTag(metafield),
+    },
+    type: DataType.JSON,
+  });
+  console.log(`Resultado da requisição de script foi`, body);
+  return body;
+  // }
+  //console.error("Could not make the rest request as the client does not exist");
 }
 
 export async function getAllScriptTags(client, src) {
@@ -27,13 +42,13 @@ export async function getAllScriptTags(client, src) {
     );
     return;
   }
-  var result = await client.get({
+  const { body } = await client.get({
     path: "script_tags",
   });
 
-  result.body.script_tags.filter((tag) => console.log(tag.src));
+  body.script_tags.filter((tag) => console.log(tag.src));
 
-  const matchSrc = result.body.script_tags.filter((tag) => tag.src === src);
+  const matchSrc = body.script_tags.filter((tag) => tag.src === src);
   return matchSrc;
 }
 
@@ -44,11 +59,11 @@ export async function deleteScriptTagById(client, id) {
     );
     return;
   }
-  const result = await client.delete({
+  const { body } = await client.delete({
     path: `script_tags/${id}`,
   });
-  console.log(result);
-  return result;
+  console.log(body);
+  return body;
 }
 
 function getBaseUrl(shop) {

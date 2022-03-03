@@ -5,8 +5,9 @@ import createShopifyAuth, { verifyRequest } from "@shopify/koa-shopify-auth";
 import Shopify, { ApiVersion } from "@shopify/shopify-api";
 import Koa from "koa";
 import next from "next";
-import routes from "./router/index";
 import Router from "koa-router";
+import bodyParser from "koa-bodyparser";
+import routes from "./router/index";
 
 dotenv.config();
 const port = parseInt(process.env.PORT, 10) || 8081;
@@ -20,8 +21,8 @@ Shopify.Context.initialize({
   API_KEY: process.env.SHOPIFY_API_KEY,
   API_SECRET_KEY: process.env.SHOPIFY_API_SECRET,
   SCOPES: process.env.SCOPES.split(","),
-  HOST_NAME: process.env.HOST.replace(/https:\/\/|\/$/g, ""),
-  API_VERSION: ApiVersion.October20,
+  HOST_NAME: process.env.HOST.replace(/^https:\/\//, ""),
+  API_VERSION: ApiVersion.January22,
   IS_EMBEDDED_APP: true,
   // This should be replaced with your preferred storage strategy
   SESSION_STORAGE: new Shopify.Session.MemorySessionStorage(),
@@ -34,6 +35,7 @@ const ACTIVE_SHOPIFY_SHOPS = {};
 app.prepare().then(async () => {
   const server = new Koa();
   const router = new Router();
+  server.use(bodyParser());
   server.keys = [Shopify.Context.API_SECRET_KEY];
   server.use(
     createShopifyAuth({
@@ -89,6 +91,7 @@ app.prepare().then(async () => {
 
   async function injectSession(ctx, next) {
     const session = await Shopify.Utils.loadCurrentSession(ctx.req, ctx.res);
+    console.log(session);
     ctx.sesionFromToken = session;
     if (session?.shop && session?.accessToken) {
       const client = new Shopify.Clients.Rest(
