@@ -22,7 +22,7 @@ const type = DataType.JSON;
  * @typedef {object} RequiredErrors - named type 'CreateError'. Creating a metafield without a key will fail and return an error
  * @property {{[string]: Array<*>}} errors - key: array of grouped errors
  *
- * @typedef {{bankName: string, bg: string, city: string, fullName: string, message: string, pixKey: string}} MetafieldPix
+ * @typedef {{bankName?: string, bg?: string, city?: string, fullName?: string, message?: string, pixKey?: string}} MetafieldPix
  */
 
 /**

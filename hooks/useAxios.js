@@ -5,7 +5,7 @@ import { getSessionToken } from "@shopify/app-bridge-utils";
 export function useAxios() {
   const app = useAppBridge();
   const instance = Axios.create();
-  instance.interceptors.request.use(function (config) {
+  instance.interceptors.request.use((config) => {
     return getSessionToken(app).then((token) => {
       config.headers["Authorization"] = `Bearer ${token}`;
       return config;

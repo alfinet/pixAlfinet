@@ -1,7 +1,7 @@
 import combineRouters from "koa-combine-routers";
-import scriptTagRouter from "./script_tag";
+import scriptsRouter from "./scripts";
 import metafieldsRouter from "./metafields";
 
-const router = combineRouters(scriptTagRouter, metafieldsRouter);
+const router = combineRouters(scriptsRouter, metafieldsRouter);
 
 export default router;
