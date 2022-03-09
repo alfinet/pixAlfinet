@@ -5,7 +5,7 @@ const scriptBlock = /\<\!-- alfinet --\>(.*)\<\!-- alfinet\.end --\>/gm;
 function makeScript(metafield = {}) {
   const appData = Buffer.from(JSON.stringify(metafield)).toString("base64");
   console.log("makeScript", appData);
-  return `<!-- alfinet --><script id=\"alfinet.pix.qrcode\" type=\"text/plain\">document.cookie='pixHash=${appData}';</script><!-- alfinet.end -->`;
+  return `<!-- alfinet --><script id=\"alfinet.pix.qrcode\">document.cookie='pixHash=${appData}';</script><!-- alfinet.end -->`;
 }
 
 export async function createScriptTag(client, metafield = {}) {
