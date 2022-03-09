@@ -10,6 +10,7 @@ import serve from "koa-static";
 import bodyParser from "koa-bodyparser";
 import routes from "./router/index";
 import RedisStore from "./redis-store";
+import * as Metafields from "./controllers/metafield_controller";
 
 dotenv.config();
 const port = parseInt(process.env.PORT, 10) || 8081;
@@ -56,7 +57,7 @@ app.prepare().then(async () => {
   server.keys = [Shopify.Context.API_SECRET_KEY];
   server.use(
     createShopifyAuth({
-      accessMode: "offline",
+      // accessMode: "offline",
       async afterAuth(ctx) {
         // Access token and shop available in ctx.state.shopify
         const { shop, accessToken, scope } = ctx.state.shopify;
@@ -108,11 +109,10 @@ app.prepare().then(async () => {
   );
 
   async function injectSession(ctx, next) {
-    // const session = await Shopify.Utils.loadCurrentSession(ctx.req, ctx.res);
+    const session = await Shopify.Utils.loadCurrentSession(ctx.req, ctx.res);
+    //
+    //const session = await Shopify.Utils.loadOfflineSession(process.env.SHOP);
 
-    const session = await Shopify.Utils.loadOfflineSession(process.env.SHOP);
-
-    console.log(session);
     ctx.sesionFromToken = session;
     if (session?.shop && session?.accessToken) {
       const client = new Shopify.Clients.Rest(
@@ -120,6 +120,7 @@ app.prepare().then(async () => {
         session.accessToken
       );
       ctx.myClient = client;
+      console.log(session.accessToken);
     }
     return next();
   }
@@ -134,30 +135,29 @@ app.prepare().then(async () => {
 
   router.get("/external/metafields/:id", async (ctx) => {
     try {
-      console.log(process.env.SHOP);
-      const sessionLoad = await Shopify.Utils.loadOfflineSession(
-        process.env.SHOP
-      );
+      const sessionLoad = await Shopify.Utils.loadOfflineSession(ctx.params.id);
       console.log("sessionLoad", sessionLoad);
 
       const clientWithSessionParams = {
         clientType: "rest",
         isOnline: false,
-        shop: process.env.SHOP,
+        shop: ctx.params.id,
       };
 
-      const { client, session } = await Shopify.Utils.withSession(
+      const { client } = await Shopify.Utils.withSession(
         clientWithSessionParams
       );
 
-      const products = await client.get({ path: "metafields" });
+      const shopMetafields = await Metafields.get(client);
 
-      const currentSessionScope = session.scope;
-      console.log(products, currentSessionScope);
+      ctx.body = shopMetafields;
+
+      console.log("shopMetafields -> ", shopMetafields);
     } catch (error) {
       console.log(error);
     }
-    ctx.body = JSON.stringify({ ...ctx.body, ...ctx.params });
+
+    ctx.body = "";
   });
 
   const baypassRoutes = [".js", "external"];
