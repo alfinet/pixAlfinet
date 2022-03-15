@@ -5,7 +5,7 @@ class RedisStore {
   constructor() {
     // Create a new redis client and connect to the server
     this.client = createClient({
-      url: process.env.REDIS,
+      url: process.env.REDIS_TLS_URL,
       socket: {
         tls: true,
         rejectUnauthorized: false,
