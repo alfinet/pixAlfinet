@@ -21,18 +21,18 @@ const app = next({
 const handle = app.getRequestHandler();
 
 const getSessionStorage = () => {
-  if (process.env.NODE_ENV == "production") {
-    // Create a new instance of the custom storage class
-    const sessionStorage = new RedisStore();
-
-    return new Shopify.Session.CustomSessionStorage(
-      sessionStorage.storeCallback.bind(sessionStorage),
-      sessionStorage.loadCallback.bind(sessionStorage),
-      sessionStorage.deleteCallback.bind(sessionStorage)
-    );
+  if (process.env.NODE_ENV != "production") {
+    return new Shopify.Session.MemorySessionStorage();
   }
 
-  return new Shopify.Session.MemorySessionStorage();
+  // Create a new instance of the custom storage class
+  const sessionStorage = new RedisStore();
+
+  return new Shopify.Session.CustomSessionStorage(
+    sessionStorage.storeCallback.bind(sessionStorage),
+    sessionStorage.loadCallback.bind(sessionStorage),
+    sessionStorage.deleteCallback.bind(sessionStorage)
+  );
 };
 
 Shopify.Context.initialize({
