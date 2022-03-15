@@ -98,12 +98,13 @@ function Index() {
   }, [color]);
 
   async function fetchScriptTags() {
-    const { data } = await axios.get("/script_tag/all");
+    const { data = {} } = await axios.get("/scripts");
     console.log("O PIX está atualmente: ", data);
     setIsInstalled(data.installed);
-    if (data.details && data.details.length > 0) {
+    /* if (data.details && data.details.length > 0) {
       setScriptTagId(data.details[0]);
-    }
+    } */
+    setScriptTagId(data.scriptTagId);
   }
 
   const setFields = useCallback(
@@ -136,20 +137,39 @@ function Index() {
 
   useEffect(() => {
     fetchScriptTags();
-  }, [isInstalled]);
+  }, []);
 
   useEffect(() => {
     if (!metafieldId) fetchMetafields();
-  }, [metafieldId]);
+  }, []);
 
-  async function handleAction() {
-    if (!isInstalled) {
-      axios.post("/script_tag");
-    } else {
-      axios.delete(`/script_tag`);
+  const handleToggle = useCallback(async () => {
+    setIsSaving(true);
+    try {
+      const options = {
+        method: !isInstalled ? "post" : "delete",
+        url: !isInstalled ? "/scripts" : `/scripts/${scriptTagId}`,
+      };
+
+      if (!isInstalled && scriptTagId) {
+        options.data = {
+          id: scriptTagId,
+        };
+      }
+
+      const body = await axios(options);
+      console.log(body);
+
+      const {
+        data: { installed },
+      } = body;
+
+      setIsInstalled(!!installed);
+      setScriptTagId(undefined);
+    } finally {
+      setIsSaving(false);
     }
-    setIsInstalled((oldValue) => !oldValue);
-  }
+  }, [isInstalled, scriptTagId]);
 
   const handleSubmit = useCallback(
     (_event) => {
@@ -170,6 +190,7 @@ function Index() {
 
       console.log("metafieldId", metafieldId);
       console.log("payload", payload);
+
       axios({
         method: !metafieldId ? "post" : "put",
         url: !metafieldId ? "/metafields" : `/metafields/${metafieldId}`,
@@ -189,10 +210,10 @@ function Index() {
             setMetafieldId(metafield.id);
           }
 
-          axios[!isInstalled ? "post" : "put"]("/script_tag")
+          axios[!isInstalled ? "post" : "put"]("/scripts", { scriptTagId })
             .then((res) => {
               if (res && res.details && res.details.length > 0) {
-                setScriptTagId(res.details[0]);
+                setScriptTagId(res.scriptTagId);
                 setIsInstalled(true);
               }
             })
@@ -355,7 +376,9 @@ function Index() {
             <SettingToggle
               action={{
                 content: titleDescription,
-                onAction: handleAction,
+                onAction: handleToggle,
+                loading: isSaving,
+                disabled: isSaving,
               }}
               enabled={true}
             >
