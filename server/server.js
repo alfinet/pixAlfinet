@@ -6,8 +6,11 @@ import Shopify, { ApiVersion } from "@shopify/shopify-api";
 import Koa from "koa";
 import next from "next";
 import Router from "koa-router";
+import serve from "koa-static";
 import bodyParser from "koa-bodyparser";
 import routes from "./router/index";
+import RedisStore from "./redis-store";
+import * as Metafields from "./controllers/metafield_controller";
 
 dotenv.config();
 const port = parseInt(process.env.PORT, 10) || 8081;
@@ -17,6 +20,21 @@ const app = next({
 });
 const handle = app.getRequestHandler();
 
+const getSessionStorage = () => {
+  if (process.env.NODE_ENV == "production") {
+    // Create a new instance of the custom storage class
+    const sessionStorage = new RedisStore();
+
+    return new Shopify.Session.CustomSessionStorage(
+      sessionStorage.storeCallback.bind(sessionStorage),
+      sessionStorage.loadCallback.bind(sessionStorage),
+      sessionStorage.deleteCallback.bind(sessionStorage)
+    );
+  }
+
+  return new Shopify.Session.MemorySessionStorage();
+};
+
 Shopify.Context.initialize({
   API_KEY: process.env.SHOPIFY_API_KEY,
   API_SECRET_KEY: process.env.SHOPIFY_API_SECRET,
@@ -25,7 +43,7 @@ Shopify.Context.initialize({
   API_VERSION: ApiVersion.January22,
   IS_EMBEDDED_APP: true,
   // This should be replaced with your preferred storage strategy
-  SESSION_STORAGE: new Shopify.Session.MemorySessionStorage(),
+  SESSION_STORAGE: getSessionStorage(),
 });
 
 // Storing the currently active shops in memory will force them to re-login when your server restarts. You should
@@ -39,6 +57,7 @@ app.prepare().then(async () => {
   server.keys = [Shopify.Context.API_SECRET_KEY];
   server.use(
     createShopifyAuth({
+      // accessMode: "offline",
       async afterAuth(ctx) {
         // Access token and shop available in ctx.state.shopify
         const { shop, accessToken, scope } = ctx.state.shopify;
@@ -91,7 +110,9 @@ app.prepare().then(async () => {
 
   async function injectSession(ctx, next) {
     const session = await Shopify.Utils.loadCurrentSession(ctx.req, ctx.res);
-    console.log(session);
+    //
+    //const session = await Shopify.Utils.loadOfflineSession(process.env.SHOP);
+
     ctx.sesionFromToken = session;
     if (session?.shop && session?.accessToken) {
       const client = new Shopify.Clients.Rest(
@@ -99,6 +120,7 @@ app.prepare().then(async () => {
         session.accessToken
       );
       ctx.myClient = client;
+      console.log(session.accessToken);
     }
     return next();
   }
@@ -106,9 +128,47 @@ app.prepare().then(async () => {
   server.use(injectSession);
   server.use(routes());
 
+  server.use(serve(__dirname + "/public"));
+
   router.get("(/_next/static/.*)", handleRequest); // Static content is clear
   router.get("/_next/webpack-hmr", handleRequest); // Webpack content is clear
-  router.get("(.*)", async (ctx) => {
+
+  router.get("/external/metafields/:id", async (ctx) => {
+    try {
+      const sessionLoad = await Shopify.Utils.loadOfflineSession(ctx.params.id);
+      console.log("sessionLoad", sessionLoad);
+
+      const clientWithSessionParams = {
+        clientType: "rest",
+        isOnline: false,
+        shop: ctx.params.id,
+      };
+
+      const { client } = await Shopify.Utils.withSession(
+        clientWithSessionParams
+      );
+
+      const shopMetafields = await Metafields.get(client);
+
+      ctx.body = shopMetafields;
+
+      console.log("shopMetafields -> ", shopMetafields);
+    } catch (error) {
+      console.log(error);
+    }
+
+    ctx.body = "";
+  });
+
+  const baypassRoutes = [".js", "external"];
+
+  router.get("(.*)", async (ctx, next) => {
+    const hasPath = !!baypassRoutes.find(
+      (i) => ctx.request.URL.pathname.indexOf(i) !== -1
+    );
+
+    if (hasPath) next();
+
     const shop = ctx.query.shop;
 
     // This shop hasn't been seen yet, go through OAuth to create a session
@@ -119,8 +179,8 @@ app.prepare().then(async () => {
     }
   });
 
-  server.use(router.allowedMethods());
   server.use(router.routes());
+  server.use(router.allowedMethods());
   server.listen(port, () => {
     console.log(`> Ready on http://localhost:${port}`);
   });

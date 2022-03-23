@@ -25,6 +25,7 @@ function resultFactory(
 }
 
 async function mutationOperation(ctx, mode = "create", updateId = undefined) {
+  console.log("ctx.request.body", ctx.request.body);
   try {
     const body = await Metafields[mode](
       ctx.myClient,

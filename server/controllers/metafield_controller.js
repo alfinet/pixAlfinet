@@ -22,7 +22,7 @@ const type = DataType.JSON;
  * @typedef {object} RequiredErrors - named type 'CreateError'. Creating a metafield without a key will fail and return an error
  * @property {{[string]: Array<*>}} errors - key: array of grouped errors
  *
- * @typedef {{bankName: string, bg: string, city: string, fullName: string, message: string, pixKey: string}} MetafieldPix
+ * @typedef {{bankName?: string, bg?: string, city?: string, fullName?: string, message?: string, pixKey?: string}} MetafieldPix
  */
 
 /**
@@ -131,14 +131,12 @@ export async function get(client) {
   console.log("[metafields] get result", result.body);
   const { metafields } = result.body;
   if (metafields && metafields.length) {
-    const metafield = {
-      ...metafields[0],
-      value: JSON.parse(metafields[0].value),
+    console.log("[metafields] get found", metafields[0]);
+
+    return {
+      ...JSON.parse(metafields[0].value),
+      id: metafields[0].id,
     };
-
-    console.log("[metafields] get found", metafield);
-
-    return metafield;
   }
 
   return null;

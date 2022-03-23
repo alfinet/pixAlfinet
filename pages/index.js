@@ -61,7 +61,9 @@ function Index() {
 
   /* Nome do banco */
   const [nomeBanco, setNomeBanco] = useState("");
-  const alteraNomeBanco = useCallback((value) => setNomeBanco(value), []);
+  const alteraNomeBanco = useCallback((value) => {
+    setNomeBanco(value);
+  }, []);
 
   /* Nome da cidade */
   const [nomeCidade, setNomeCidade] = useState("");
@@ -96,12 +98,13 @@ function Index() {
   }, [color]);
 
   async function fetchScriptTags() {
-    const { data } = await axios.get("/script_tag/all");
+    const { data = {} } = await axios.get("/scripts");
     console.log("O PIX está atualmente: ", data);
     setIsInstalled(data.installed);
-    if (data.details.length > 0) {
-      setScriptTagId(data.details[0].id);
-    }
+    /* if (data.details && data.details.length > 0) {
+      setScriptTagId(data.details[0]);
+    } */
+    setScriptTagId(data.scriptTagId);
   }
 
   const setFields = useCallback(
@@ -112,7 +115,8 @@ function Index() {
       if (bankName) setNomeBanco(bankName);
       if (city) setNomeCidade(city);
       if (message) setMensagem(message);
-    }
+    },
+    [nomePix, chave, nomeBanco, nomeCidade, mensagem, color]
   );
 
   async function fetchMetafields() {
@@ -121,11 +125,9 @@ function Index() {
       console.log("fetchMetafields", data);
 
       if (data && data.id) {
-        const { id, value } = data;
-        setMetafieldId(id);
-        if (typeof value === "object") {
-          setFields(value);
-        }
+        const { id } = data;
+        if (id) setMetafieldId(id);
+        setFields(data);
       }
     } catch (e) {
       console.log(e);
@@ -135,72 +137,102 @@ function Index() {
 
   useEffect(() => {
     fetchScriptTags();
-  }, [isInstalled]);
+  }, []);
 
   useEffect(() => {
-    fetchMetafields();
-  }, [metafieldId]);
-
-  async function handleAction() {
-    if (!isInstalled) {
-      axios.post("/script_tag/");
-    } else {
-      axios.delete(`/script_tag/?id=${scriptTagId}`);
-    }
-    setIsInstalled((oldValue) => !oldValue);
-  }
-
-  const handleSubmit = useCallback((_event) => {
-    setIsSaving(true);
-    setSavingStatus("");
-    setSavingStatus({
-      isValid: true,
-      msg: "Salvando informações...",
-    });
-    const paylaod = {
-      bankName: String(nomeBanco).trim(),
-      bg: String(color).trim(),
-      city: String(nomeCidade).trim(),
-      fullName: String(nomePix).trim(),
-      message: String(mensagem).trim(),
-      pixKey: String(chave).trim(),
-    };
-
-    console.log("metafieldId", metafieldId);
-    axios({
-      method: !metafieldId ? "post" : "put",
-      url: !metafieldId ? "/metafields" : `/metafields/${metafieldId}`,
-      data: paylaod,
-    })
-      .then(({ data }) => {
-        const { success, metafield, error } = data;
-        if (!success || !metafield) {
-          throw new Error(error);
-        }
-        setSavingStatus({
-          isValid: true,
-          msg: "Salvo com sucesso!",
-        });
-
-        if (metafield.id) {
-          setMetafieldId(metafield.id);
-        }
-
-        if (!isInstalled || !scriptTagId) {
-          axios.post("/script_tag");
-        } else {
-          axios.put(`/script_tag/?id=${scriptTagId}`);
-        }
-      })
-      .catch((e) => {
-        console.log(e);
-        setSavingStatus({
-          isValid: false,
-          msg: "Ocorreu um erro ao salvar as alterações. Tente novamente.",
-        });
-      })
-      .finally(() => setIsSaving(false));
+    if (!metafieldId) fetchMetafields();
   }, []);
+
+  const handleToggle = useCallback(async () => {
+    setIsSaving(true);
+    try {
+      const options = {
+        method: !isInstalled ? "post" : "delete",
+        url: !isInstalled ? "/scripts" : `/scripts/${scriptTagId}`,
+      };
+
+      if (!isInstalled && scriptTagId) {
+        options.data = {
+          id: scriptTagId,
+        };
+      }
+
+      const body = await axios(options);
+      console.log(body);
+
+      const {
+        data: { installed },
+      } = body;
+
+      setIsInstalled(!!installed);
+      setScriptTagId(undefined);
+    } finally {
+      setIsSaving(false);
+    }
+  }, [isInstalled, scriptTagId]);
+
+  const handleSubmit = useCallback(
+    (_event) => {
+      setIsSaving(true);
+      setSavingStatus("");
+      setSavingStatus({
+        isValid: true,
+        msg: "Salvando informações...",
+      });
+      const payload = {
+        bankName: String(nomeBanco).trim(),
+        bg: String(color).trim(),
+        city: String(nomeCidade).trim(),
+        fullName: String(nomePix).trim(),
+        message: String(mensagem).trim(),
+        pixKey: String(chave).trim(),
+      };
+
+      console.log("metafieldId", metafieldId);
+      console.log("payload", payload);
+
+      axios({
+        method: !metafieldId ? "post" : "put",
+        url: !metafieldId ? "/metafields" : `/metafields/${metafieldId}`,
+        data: payload,
+      })
+        .then(({ data }) => {
+          const { success, metafield, error } = data;
+          if (!success || !metafield) {
+            throw new Error(error);
+          }
+          setSavingStatus({
+            isValid: true,
+            msg: "Salvo com sucesso!",
+          });
+
+          if (metafield.id) {
+            setMetafieldId(metafield.id);
+          }
+
+          axios[!isInstalled ? "post" : "put"]("/scripts", { scriptTagId })
+            .then((res) => {
+              if (res && res.details && res.details.length > 0) {
+                setScriptTagId(res.scriptTagId);
+                setIsInstalled(true);
+              }
+            })
+            .catch(() => {
+              setIsInstalled(false);
+              setScriptTagId(null);
+            });
+        })
+        .catch((e) => {
+          console.log(e);
+          setSavingStatus({
+            isValid: false,
+            msg: "Ocorreu um erro ao salvar as alterações. Tente novamente.",
+          });
+        })
+        .finally(() => setIsSaving(false));
+    },
+    [nomePix, chave, nomeBanco, nomeCidade, mensagem, color]
+  );
 
   /* Estilos */
   const pixSection = {
@@ -344,7 +376,9 @@ function Index() {
             <SettingToggle
               action={{
                 content: titleDescription,
-                onAction: handleAction,
+                onAction: handleToggle,
+                loading: isSaving,
+                disabled: isSaving,
               }}
               enabled={true}
             >
