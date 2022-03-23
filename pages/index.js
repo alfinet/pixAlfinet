@@ -53,17 +53,24 @@ function Index() {
 
   /* Nome do pix */
   const [nomePix, setNomePix] = useState("");
-  const alteraNomePix = useCallback((value) => setNomePix(value), []);
+  const alteraNomePix = useCallback(function (value) {
+    document.querySelector("#beneficiario").innerHTML = value;
+    setNomePix(value)
+  });
 
   /* Chave PIX */
   const [chave, setChave] = useState("");
-  const alteraChave = useCallback((value) => setChave(value), []);
+  const alteraChave = useCallback(function (value) {
+    document.querySelector("#chavePix").innerHTML = value;
+    setChave(value)
+  });
 
   /* Nome do banco */
   const [nomeBanco, setNomeBanco] = useState("");
-  const alteraNomeBanco = useCallback((value) => {
-    setNomeBanco(value);
-  }, []);
+  const alteraNomeBanco = useCallback(function (value) {
+    document.querySelector("#nomeBanco").innerHTML = value;
+    setNomeBanco(value)
+  });
 
   /* Nome da cidade */
   const [nomeCidade, setNomeCidade] = useState("");
@@ -72,8 +79,7 @@ function Index() {
   /* Mensagem custom */
   const [mensagem, setMensagem] = useState("");
   const alteraMensagem = useCallback(function (value) {
-    var mensagem = document.querySelector(".pixCustomInfo");
-    mensagem.innerHTML = value;
+    document.querySelector(".pixCustomInfo").innerHTML = value;
     setMensagem(value);
   });
 
@@ -234,48 +240,6 @@ function Index() {
     [nomePix, chave, nomeBanco, nomeCidade, mensagem, color]
   );
 
-  /* Estilos */
-  const pixSection = {
-    textAlign: "center",
-    backgroundColor: "#000",
-    padding: "30px",
-    borderRadius: "5px",
-  };
-
-  const pixTitle = {
-    fontSize: "25px",
-    fontWeight: "700",
-    color: "#fff",
-  };
-
-  const pixCustomInfo = {
-    margin: "20px",
-    color: "#fff",
-  };
-
-  const pixQr = {
-    maxWidth: "205px",
-    margin: "0 auto",
-  };
-
-  const pixPreco = {
-    fontSize: "23px",
-    color: "#fff",
-    margin: "15px auto",
-    fontWeight: "500",
-  };
-
-  const pixBotao = {
-    backgroundColor: "#fff",
-    maxWidth: "100%",
-    width: "400px",
-    display: "block",
-    margin: "0 auto",
-    fontSize: "16px",
-    padding: "15px 0",
-    borderRadius: "5px",
-    position: "relative",
-  };
   return (
     <Page>
       <Layout>
@@ -285,9 +249,6 @@ function Index() {
           title="Informações do PIX"
           description="Preencha as informações ao lado usando seus dados reais."
         >
-          <Banner title="Observação" onDismiss={() => {}}>
-            <p>As alterações podem demorar até 5 minutos para propagar.</p>
-          </Banner>
           <br />
           <Card sectioned>
             <Form onSubmit={handleSubmit}>
@@ -324,7 +285,6 @@ function Index() {
                   multiline={6}
                   autoComplete="off"
                   disabled={isSaving}
-                  clearButton={true}
                 />
                 <Stack>
                   <Stack.Item fill>
@@ -350,8 +310,8 @@ function Index() {
           </Card>
         </Layout.AnnotatedSection>
 
-        {/* Personalização de Cor */}
-        <Layout.AnnotatedSection
+         {/* Personalização de Cor */}
+         <Layout.AnnotatedSection
           id="personalize"
           title="Personalização"
           description="Hora de personalizar."
@@ -365,7 +325,7 @@ function Index() {
             </Layout.Section>
           </Layout>
         </Layout.AnnotatedSection>
-
+        
         {/* Banner de instalação */}
         <Layout.AnnotatedSection
           id="instalacao"
@@ -395,13 +355,12 @@ function Index() {
           description=""
         >
           <Card sectioned>
-            <div className="pixSection" borbg="secundary" style={pixSection}>
-              <h3 cortext="secundary" style={pixTitle} className="pixTitle">
+            <div className="pixSection" borbg="secundary">
+              <h3 cortext="secundary" className="pixTitle">
                 Use o QR code do Pix para pagar
               </h3>
               <p
                 cortext="secundary"
-                style={pixCustomInfo}
                 className="pixCustomInfo"
               >
                 Insira aqui sua mensagem customizada, incluindo se precisar o
@@ -413,10 +372,9 @@ function Index() {
                   src="https://chart.googleapis.com/chart?chs=250x250&amp;chld=L%7C1&amp;cht=qr&amp;chl=%22Este%20%C3%A9%20um%20exemplo%20de%20QR%20Code%20by%20Alfient%22"
                   alt="Exemplo de QR"
                   className="pixQr"
-                  style={pixQr}
                 />
               </div>
-              <p cortext="secundary" className="pixPreco" style={pixPreco}>
+              <p cortext="secundary" className="pixPreco">
                 R$90,00
               </p>
               <a
@@ -424,11 +382,36 @@ function Index() {
                 cortext="primary"
                 corbg="secundary"
                 className="pixBotao"
-                style={pixBotao}
               >
                 Copiar código do QR Code
               </a>
             </div>
+            <div className="boxInfos">
+              <p className="separadorOu">Ou use <strong>a chave Pix</strong></p>
+              <div className="flex flex-column flex-nowrap w-100 f6-ns bt-ns b--black-10 pt4-ns mt4 mt0-ns">
+              <div id="copy-alias" className="flex justify-between pb3" data-clipboard-text="12418423611">
+                <span className="justify-start b tl">Chave Pix (CNPJ)</span>
+                <span className="copy-icon-alias">
+                  <span className="justify-end pixkey" id="chavePix">12418423611</span>
+                  <div className="tooltip">
+                    <span id="tooltiptext" className="tooltiptext">Copiado!</span>
+                  </div>
+                </span>
+              </div>
+              <div className="flex justify-between pb3">
+                  <span className="b tl">Nome</span>
+                  <span id="beneficiario">Luiz Henrique de Medeiros Nogueira</span>
+              </div>
+              <div className="flex justify-between pb3">
+                  <span className="b tl">Banco</span>
+                  <span id="nomeBanco">Itau Unibanco</span>
+              </div>
+              <div className="flex justify-between pb3">
+                  <span className="b tl">Identificador</span>
+                  <span>PEDIDO9999</span>
+              </div>
+            </div>
+          </div>
           </Card>
         </Layout.AnnotatedSection>
       </Layout>
