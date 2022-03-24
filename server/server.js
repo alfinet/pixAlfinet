@@ -178,6 +178,18 @@ app.prepare().then(async () => {
       await handleRequest(ctx);
     }
   });
+  
+  router.post('/customers/redact', (ctx) => {
+    ctx.status = 200
+  });
+  
+  router.post('/shop/redact', (ctx) => {
+    ctx.status = 200
+  });
+  
+  router.post('/customers/data_request', (ctx) => {
+    ctx.status = 200
+  });
 
   server.use(router.routes());
   server.use(router.allowedMethods());
